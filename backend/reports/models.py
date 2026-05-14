@@ -407,6 +407,24 @@ class Testimonial(models.Model):
         return f"{self.name} - {self.position}"
 
 
+class Signatory(models.Model):
+    """Master list of signatory names available in the system"""
+    name = models.CharField(max_length=200, unique=True)
+    title = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'signatories'
+        ordering = ['name']
+        indexes = [models.Index(fields=['name']), models.Index(fields=['is_active'])]
+
+    def __str__(self):
+        return f"{self.name} ({self.title})"
+
+
 class UserProfile(models.Model):
     """Extended user profile with role-based permissions"""
 

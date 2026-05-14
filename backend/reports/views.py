@@ -247,9 +247,8 @@ class UploadedFileViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(archived_files, many=True)
         return Response(serializer.data)
-
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], url_path='upload')
     @audit_action('FILE_UPLOAD', 'File upload and processing', category='file_management', severity='MEDIUM')
     def upload(self, request):
         serializer = ExcelUploadSerializer(data=request.data)

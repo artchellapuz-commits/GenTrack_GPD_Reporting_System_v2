@@ -149,7 +149,7 @@ export const api = {
   },
 
   async generateReport(reportData) {
-    const response = await apiClient.post('/generation-reports/generate_report/', reportData);
+    const response = await apiClient.post('/generation-reports/generate-report/', reportData);
     return response; // Return full response object
   },
 
@@ -383,6 +383,11 @@ export const api = {
     }
   },
 
+  async generateSetupLink(authorizationId) {
+    const response = await apiClient.post(`/signatory-authorizations/${authorizationId}/generate-setup/`);
+    return response; // Return full response object
+  },
+
   async requestSignatoryAuthorization(requestData) {
     const response = await apiClient.post('/signatory-authorizations/request/', requestData);
     return response; // Return full response object
@@ -393,9 +398,46 @@ export const api = {
     return response; // Return full response object
   },
 
+  // Signatories (persistent list stored on server)
+  async getSignatories() {
+    const response = await apiClient.get('/signatories/');
+    return response; // Return full response object
+  },
+
+  async createSignatory(signatoryData) {
+    const response = await apiClient.post('/signatories/', signatoryData);
+    return response; // Return full response object
+  },
+
+  async updateSignatory(id, signatoryData) {
+    const response = await apiClient.patch(`/signatories/${id}/`, signatoryData);
+    return response; // Return full response object
+  },
+
+  async deleteSignatory(id) {
+    const response = await apiClient.delete(`/signatories/${id}/`);
+    return response; // Return full response object
+  },
+
+  // Cancel a pending authorization request (convenience wrapper)
+  async cancelAuthorizationRequest(id) {
+    const response = await apiClient.delete(`/signatory-authorizations/${id}/`);
+    return response; // Return full response object
+  },
+
+  async updateAuthorization(id, data) {
+    const response = await apiClient.patch(`/signatory-authorizations/${id}/`, data);
+    return response; // Return full response object
+  },
+
   async deleteSignatoryAuthorization(id) {
     const response = await apiClient.delete(`/signatory-authorizations/${id}/`);
     return response; // Return full response object
+  },
+
+  // Backwards-compatible alias used by some components
+  async deleteAuthorization(id) {
+    return await this.deleteSignatoryAuthorization(id);
   },
 
   async getESignatures(params = {}) {

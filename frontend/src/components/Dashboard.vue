@@ -255,9 +255,10 @@
 
           <!-- Pie Charts Row -->
           <div class="z-pie-row mt-4">
-            <div class="card glass-card z-pie-chart animate-slide-up" style="animation-delay: 0.6s">
+            <div class="card glass-card z-pie-chart animate-slide-up clickable-chart" style="animation-delay: 0.6s" @click="openChartModal('capacity')">
               <div class="card-header">
                 <h3 class="card-title"><i class="pi pi-chart-pie"></i> Plant Capacity</h3>
+                <span class="click-hint"><i class="pi pi-search-plus"></i> Click to view details</span>
               </div>
               <div class="card-body chart-container">
                 <PieChart v-if="plantsData.length" :data="plantCapacityData" :options="pieChartOptions" />
@@ -265,9 +266,10 @@
               </div>
             </div>
             
-            <div class="card glass-card z-pie-chart animate-slide-up" style="animation-delay: 0.8s">
+            <div class="card glass-card z-pie-chart animate-slide-up clickable-chart" style="animation-delay: 0.8s" @click="openChartModal('generation')">
               <div class="card-header">
                 <h3 class="card-title"><i class="pi pi-chart-pie"></i> Generation Distribution</h3>
+                <span class="click-hint"><i class="pi pi-search-plus"></i> Click to view details</span>
               </div>
               <div class="card-body chart-container">
                 <PieChart v-if="plantsData.length" :data="generationDistributionData" :options="pieChartOptions" />
@@ -817,6 +819,115 @@
         </div>
       </div>
     </div>
+
+    <!-- Chart Detail Modal -->
+    <div v-if="showChartModal" class="modal-overlay glass-overlay" @click="closeChartModal">
+      <div 
+        ref="chartModal"
+        class="chart-detail-modal glass-modal resizable-modal" 
+        @click.stop
+        :style="modalStyle"
+      >
+        <div class="modal-header" @mousedown="startDrag">
+          <h2>
+            <i class="pi pi-chart-pie"></i>
+            {{ chartModalTitle }}
+          </h2>
+          <button @click="closeChartModal" class="btn-close-modal glass-button">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- Large Chart Display -->
+          <div class="large-chart-container">
+            <PieChart 
+              v-if="chartModalData" 
+              :data="chartModalData" 
+              :options="modalPieChartOptions" 
+            />
+          </div>
+
+          <!-- Detailed Data Table -->
+          <div class="chart-data-table">
+            <h3>Detailed Breakdown</h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Plant</th>
+                  <th>{{ chartModalType === 'capacity' ? 'Capacity (MW)' : 'Generation (kWh)' }}</th>
+                  <th>Percentage</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(plant, index) in chartModalPlants" :key="plant.code">
+                  <td>
+                    <div class="plant-info">
+                      <span 
+                        class="color-indicator" 
+                        :style="{ backgroundColor: chartModalColors[index] }"
+                      ></span>
+                      <span class="plant-name">{{ simplifyPlantName(plant.name) }}</span>
+                      <span class="plant-code">{{ plant.code }}</span>
+                    </div>
+                  </td>
+                  <td class="value-cell">
+                    {{ chartModalType === 'capacity' 
+                      ? formatNumber(getPlantCapacity(plant.code)) 
+                      : formatNumber(plant.generation) 
+                    }}
+                  </td>
+                  <td class="percentage-cell">
+                    <div class="percentage-bar-container">
+                      <div 
+                        class="percentage-bar" 
+                        :style="{ 
+                          width: getPlantPercentage(plant, chartModalType) + '%',
+                          backgroundColor: chartModalColors[index]
+                        }"
+                      ></div>
+                      <span class="percentage-text">{{ getPlantPercentage(plant, chartModalType) }}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="status-badge active">
+                      <i class="pi pi-circle-fill"></i> Active
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td><strong>Total</strong></td>
+                  <td class="value-cell">
+                    <strong>{{ formatNumber(chartModalTotal) }}</strong>
+                  </td>
+                  <td class="percentage-cell">
+                    <strong>100%</strong>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeChartModal" class="btn-close glass-button">
+            Close
+          </button>
+        </div>
+        
+        <!-- Resize Handles -->
+        <div class="resize-handle resize-handle-n" @mousedown.stop="startResize($event, 'n')"></div>
+        <div class="resize-handle resize-handle-s" @mousedown.stop="startResize($event, 's')"></div>
+        <div class="resize-handle resize-handle-e" @mousedown.stop="startResize($event, 'e')"></div>
+        <div class="resize-handle resize-handle-w" @mousedown.stop="startResize($event, 'w')"></div>
+        <div class="resize-handle resize-handle-ne" @mousedown.stop="startResize($event, 'ne')"></div>
+        <div class="resize-handle resize-handle-nw" @mousedown.stop="startResize($event, 'nw')"></div>
+        <div class="resize-handle resize-handle-se" @mousedown.stop="startResize($event, 'se')"></div>
+        <div class="resize-handle resize-handle-sw" @mousedown.stop="startResize($event, 'sw')"></div>
+      </div>
+    </div>
 </template>
 
 <script>
@@ -918,6 +1029,30 @@ export default {
       selectedForComparison: [],
       showComparisonModal: false,
       exportingPlant: null,
+      
+      // Chart Modal
+      showChartModal: false,
+      chartModalType: null, // 'capacity' or 'generation'
+      chartModalTitle: '',
+      chartModalData: null,
+      chartModalPlants: [],
+      chartModalColors: [],
+      chartModalTotal: 0,
+      
+      // Modal resize and drag
+      modalWidth: 1200,
+      modalHeight: 700,
+      modalX: null,
+      modalY: null,
+      isDragging: false,
+      isResizing: false,
+      resizeDirection: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      resizeStartX: 0,
+      resizeStartY: 0,
+      resizeStartWidth: 0,
+      resizeStartHeight: 0,
 
       // Monthly Trend State
       trendSelectedPlant: 'AGUS1',  // Default to Agus 1
@@ -1529,6 +1664,70 @@ export default {
           }
         ]
       };
+    },
+    
+    modalPieChartOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          datalabels: {
+            color: '#fff',
+            font: {
+              weight: 'bold',
+              size: 14
+            },
+            formatter: (value, ctx) => {
+              let sum = 0;
+              let dataArr = ctx.chart.data.datasets[0].data;
+              dataArr.map(data => {
+                sum += data;
+              });
+              let percentage = (value * 100 / sum).toFixed(1) + "%";
+              return percentage;
+            }
+          },
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: {
+                size: 14
+              },
+              padding: 20
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const dataset = context.dataset.data;
+                const total = dataset.reduce((acc, val) => acc + val, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${label}: ${this.formatNumber(value)} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      };
+    },
+    
+    modalStyle() {
+      const style = {
+        width: `${this.modalWidth}px`,
+        height: `${this.modalHeight}px`,
+        maxWidth: '95vw',
+        maxHeight: '95vh'
+      };
+      
+      if (this.modalX !== null && this.modalY !== null) {
+        style.position = 'fixed';
+        style.left = `${this.modalX}px`;
+        style.top = `${this.modalY}px`;
+        style.transform = 'none';
+      }
+      
+      return style;
     }
   },
   created() {
@@ -2590,6 +2789,157 @@ export default {
     closeComparison() {
       this.showComparisonModal = false;
     },
+    
+    openChartModal(type) {
+      this.chartModalType = type;
+      
+      if (type === 'capacity') {
+        this.chartModalTitle = 'Plant Capacity Details';
+        this.chartModalData = this.plantCapacityData;
+        this.chartModalColors = this.plantCapacityData.datasets[0].backgroundColor;
+        this.chartModalTotal = this.filteredPlants.reduce((sum, p) => sum + this.getPlantCapacity(p.code), 0);
+      } else if (type === 'generation') {
+        this.chartModalTitle = 'Generation Distribution Details';
+        this.chartModalData = this.generationDistributionData;
+        this.chartModalColors = this.generationDistributionData.datasets[0].backgroundColor;
+        this.chartModalTotal = this.filteredPlants.reduce((sum, p) => sum + p.generation, 0);
+      }
+      
+      this.chartModalPlants = [...this.filteredPlants];
+      
+      // Reset modal size and position
+      this.modalWidth = 1200;
+      this.modalHeight = 700;
+      this.modalX = null;
+      this.modalY = null;
+      
+      this.showChartModal = true;
+    },
+    
+    closeChartModal() {
+      this.showChartModal = false;
+      this.chartModalType = null;
+      this.chartModalData = null;
+      this.chartModalPlants = [];
+      this.isDragging = false;
+      this.isResizing = false;
+    },
+    
+    startDrag(e) {
+      if (e.target.closest('.btn-close-modal')) return;
+      
+      this.isDragging = true;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      
+      const modal = this.$refs.chartModal;
+      const rect = modal.getBoundingClientRect();
+      
+      if (this.modalX === null) {
+        this.modalX = rect.left;
+        this.modalY = rect.top;
+      }
+      
+      document.addEventListener('mousemove', this.onDrag);
+      document.addEventListener('mouseup', this.stopDrag);
+      
+      e.preventDefault();
+    },
+    
+    onDrag(e) {
+      if (!this.isDragging) return;
+      
+      const deltaX = e.clientX - this.dragStartX;
+      const deltaY = e.clientY - this.dragStartY;
+      
+      this.modalX += deltaX;
+      this.modalY += deltaY;
+      
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+    },
+    
+    stopDrag() {
+      this.isDragging = false;
+      document.removeEventListener('mousemove', this.onDrag);
+      document.removeEventListener('mouseup', this.stopDrag);
+    },
+    
+    startResize(e, direction) {
+      this.isResizing = true;
+      this.resizeDirection = direction;
+      this.resizeStartX = e.clientX;
+      this.resizeStartY = e.clientY;
+      this.resizeStartWidth = this.modalWidth;
+      this.resizeStartHeight = this.modalHeight;
+      
+      const modal = this.$refs.chartModal;
+      const rect = modal.getBoundingClientRect();
+      
+      if (this.modalX === null) {
+        this.modalX = rect.left;
+        this.modalY = rect.top;
+      }
+      
+      this.resizeStartLeft = this.modalX;
+      this.resizeStartTop = this.modalY;
+      
+      document.addEventListener('mousemove', this.onResize);
+      document.addEventListener('mouseup', this.stopResize);
+      
+      e.preventDefault();
+    },
+    
+    onResize(e) {
+      if (!this.isResizing) return;
+      
+      const deltaX = e.clientX - this.resizeStartX;
+      const deltaY = e.clientY - this.resizeStartY;
+      
+      const direction = this.resizeDirection;
+      
+      // Minimum dimensions
+      const minWidth = 600;
+      const minHeight = 400;
+      
+      if (direction.includes('e')) {
+        this.modalWidth = Math.max(minWidth, this.resizeStartWidth + deltaX);
+      }
+      if (direction.includes('w')) {
+        const newWidth = Math.max(minWidth, this.resizeStartWidth - deltaX);
+        if (newWidth > minWidth) {
+          this.modalWidth = newWidth;
+          this.modalX = this.resizeStartLeft + deltaX;
+        }
+      }
+      if (direction.includes('s')) {
+        this.modalHeight = Math.max(minHeight, this.resizeStartHeight + deltaY);
+      }
+      if (direction.includes('n')) {
+        const newHeight = Math.max(minHeight, this.resizeStartHeight - deltaY);
+        if (newHeight > minHeight) {
+          this.modalHeight = newHeight;
+          this.modalY = this.resizeStartTop + deltaY;
+        }
+      }
+    },
+    
+    stopResize() {
+      this.isResizing = false;
+      this.resizeDirection = null;
+      document.removeEventListener('mousemove', this.onResize);
+      document.removeEventListener('mouseup', this.stopResize);
+    },
+    
+    getPlantPercentage(plant, type) {
+      if (type === 'capacity') {
+        const capacity = this.getPlantCapacity(plant.code);
+        return this.chartModalTotal > 0 ? ((capacity / this.chartModalTotal) * 100).toFixed(1) : 0;
+      } else {
+        return this.chartModalTotal > 0 ? ((plant.generation / this.chartModalTotal) * 100).toFixed(1) : 0;
+      }
+    },
+    
     
     cancelComparison() {
       this.comparisonMode = false;
@@ -5956,6 +6306,396 @@ export default {
   
   .title-text p {
     font-size: 0.8125rem;
+  }
+}
+
+/* Clickable Chart Styles */
+.clickable-chart {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.clickable-chart:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.clickable-chart .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.click-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.clickable-chart:hover .click-hint {
+  opacity: 1;
+}
+
+/* Chart Detail Modal */
+.chart-detail-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+.resizable-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.chart-detail-modal .modal-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: move;
+  user-select: none;
+}
+
+.chart-detail-modal .modal-header:active {
+  cursor: grabbing;
+}
+
+.chart-detail-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.btn-close-modal {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Resize Handles */
+.resize-handle {
+  position: absolute;
+  background: transparent;
+  z-index: 10;
+}
+
+.resize-handle-n {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resize-handle-s {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resize-handle-e {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resize-handle-w {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resize-handle-ne {
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-nw {
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.resize-handle-se {
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.resize-handle-sw {
+  bottom: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nesw-resize;
+}
+
+/* Visual indicator for corner resize handles */
+.resize-handle-se::after,
+.resize-handle-sw::after,
+.resize-handle-ne::after,
+.resize-handle-nw::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(102, 126, 234, 0.5);
+  border-radius: 2px;
+}
+
+.resize-handle-se::after {
+  bottom: 2px;
+  right: 2px;
+}
+
+.resize-handle-sw::after {
+  bottom: 2px;
+  left: 2px;
+}
+
+.resize-handle-ne::after {
+  top: 2px;
+  right: 2px;
+}
+
+.resize-handle-nw::after {
+  top: 2px;
+  left: 2px;
+}
+
+.chart-detail-modal .modal-body {
+  padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.large-chart-container {
+  height: 400px;
+  margin-bottom: 2rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-data-table {
+  margin-top: 2rem;
+}
+
+.chart-data-table h3 {
+  margin: 0 0 1rem 0;
+  color: #1e293b;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.data-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.data-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.data-table td {
+  padding: 1rem;
+  color: #475569;
+}
+
+.plant-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.plant-info .plant-name {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.plant-info .plant-code {
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.value-cell {
+  font-weight: 600;
+  color: #1e293b;
+  font-family: 'Courier New', monospace;
+}
+
+.percentage-cell {
+  min-width: 200px;
+}
+
+.percentage-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.percentage-bar {
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.5rem;
+  transition: width 0.3s ease;
+  min-width: 40px;
+}
+
+.percentage-text {
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 50px;
+}
+
+.data-table tfoot {
+  background: #f8fafc;
+  border-top: 2px solid #cbd5e1;
+}
+
+.data-table tfoot .total-row td {
+  padding: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.chart-detail-modal .modal-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #f8fafc;
+}
+
+.btn-export {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.btn-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-close {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+  background: #cbd5e1;
+}
+
+/* Responsive adjustments for chart modal */
+@media (max-width: 768px) {
+  .chart-detail-modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .large-chart-container {
+    height: 300px;
+  }
+  
+  .data-table {
+    font-size: 0.875rem;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .percentage-cell {
+    min-width: 150px;
   }
 }
 </style>

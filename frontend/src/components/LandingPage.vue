@@ -1257,7 +1257,7 @@ export default {
   overflow: hidden;
 }
 
-/* Hero date/time display: positioned top-left with 3D effects */
+/* Hero date/time display: positioned top-left */
 .hero-datetime {
   position: fixed;
   top: 8px;
@@ -1269,150 +1269,29 @@ export default {
   gap: 4px;
   align-items: flex-start;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
   pointer-events: none;
-  
-  /* 3D Transform and Perspective */
-  transform-style: preserve-3d;
-  perspective: 1000px;
-  
-  /* Glassmorphism background */
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.1) 0%, 
-    rgba(255, 255, 255, 0.05) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 16px;
-  padding: 16px 24px;
-  
-  /* 3D Shadow layers */
-  box-shadow: 
-    0 8px 32px 0 rgba(31, 38, 135, 0.37),
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-  
-  /* Subtle 3D tilt */
-  transform: rotateX(2deg) rotateY(-2deg) translateZ(20px);
-  
-  /* Smooth transitions */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-.hero-datetime:hover {
-  transform: rotateX(0deg) rotateY(0deg) translateZ(30px) scale(1.02);
-  box-shadow: 
-    0 12px 48px 0 rgba(31, 38, 135, 0.5),
-    0 6px 24px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
-}
-
 .hero-datetime .date {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   opacity: 0.95;
-  font-weight: 600;
-  letter-spacing: 1px;
-  
-  /* 3D Text effect */
-  text-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.4),
-    0 2px 0 rgba(0, 0, 0, 0.2),
-    0 3px 0 rgba(0, 0, 0, 0.15),
-    0 4px 0 rgba(0, 0, 0, 0.1),
-    0 5px 10px rgba(0, 0, 0, 0.3);
-  
-  transform: translateZ(10px);
-  transition: all 0.3s ease;
 }
-
 .hero-datetime .time {
-  font-size: 1.8rem;
-  letter-spacing: 2px;
-  font-weight: 700;
-  
-  /* Enhanced 3D Text effect */
-  text-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.5),
-    0 2px 0 rgba(0, 0, 0, 0.3),
-    0 3px 0 rgba(0, 0, 0, 0.25),
-    0 4px 0 rgba(0, 0, 0, 0.2),
-    0 5px 0 rgba(0, 0, 0, 0.15),
-    0 6px 0 rgba(0, 0, 0, 0.1),
-    0 8px 20px rgba(0, 0, 0, 0.4),
-    0 0 30px rgba(100, 200, 255, 0.3);
-  
-  /* Gradient text */
-  background: linear-gradient(135deg, #ffffff 0%, #e0f2ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  
-  transform: translateZ(20px);
-  transition: all 0.3s ease;
-  
-  /* Subtle glow animation */
-  animation: timeGlow 3s ease-in-out infinite;
-}
-
-@keyframes timeGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(100, 200, 255, 0.3));
-  }
-  50% {
-    filter: drop-shadow(0 0 16px rgba(100, 200, 255, 0.5));
-  }
-}
-
-/* Hover effects for individual elements */
-.hero-datetime:hover .date {
-  transform: translateZ(15px);
-  text-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.5),
-    0 2px 0 rgba(0, 0, 0, 0.25),
-    0 3px 0 rgba(0, 0, 0, 0.2),
-    0 4px 0 rgba(0, 0, 0, 0.15),
-    0 5px 0 rgba(0, 0, 0, 0.1),
-    0 6px 15px rgba(0, 0, 0, 0.4);
-}
-
-.hero-datetime:hover .time {
-  transform: translateZ(30px);
-  text-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.6),
-    0 2px 0 rgba(0, 0, 0, 0.35),
-    0 3px 0 rgba(0, 0, 0, 0.3),
-    0 4px 0 rgba(0, 0, 0, 0.25),
-    0 5px 0 rgba(0, 0, 0, 0.2),
-    0 6px 0 rgba(0, 0, 0, 0.15),
-    0 8px 0 rgba(0, 0, 0, 0.1),
-    0 10px 30px rgba(0, 0, 0, 0.5),
-    0 0 40px rgba(100, 200, 255, 0.5);
+  font-size: 1.25rem;
+  letter-spacing: 0.6px;
 }
 
 @media (max-width: 600px) {
   .hero-datetime {
     top: 6px;
     left: 8px;
-    padding: 12px 18px;
-    border-radius: 12px;
-    transform: rotateX(1deg) rotateY(-1deg) translateZ(15px);
   }
-  
   .hero-datetime .time {
-    font-size: 1.3rem;
-    letter-spacing: 1.5px;
+    font-size: 0.95rem;
   }
-  
   .hero-datetime .date {
-    font-size: 0.9rem;
-    letter-spacing: 0.8px;
-  }
-  
-  .hero-datetime:hover {
-    transform: rotateX(0deg) rotateY(0deg) translateZ(20px) scale(1.01);
+    font-size: 0.75rem;
   }
 }
 

@@ -530,9 +530,9 @@ class ESignatureSerializer(serializers.ModelSerializer):
         
         # Log creation
         self._log_audit(request, 'CREATE', signature, True)
-        
+
         return signature
-    
+
     def _log_audit(self, request, action, signature, success, failure_reason=''):
         """Log signature operation to audit log"""
         from .models import SignatureAuditLog
@@ -557,6 +557,20 @@ class ESignatureSerializer(serializers.ModelSerializer):
         if x_forwarded_for:
             return x_forwarded_for.split(',')[0].strip()
         return request.META.get('REMOTE_ADDR', '127.0.0.1')
+
+
+class SignatorySerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = None  # will be set after model import to avoid circular imports
+        fields = ['id', 'name', 'title', 'created_by', 'created_by_username', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+
+# bind Signatory model dynamically
+from .models import Signatory as _Signatory
+SignatorySerializer.Meta.model = _Signatory
 
 
 class ReportSignatureSerializer(serializers.ModelSerializer):

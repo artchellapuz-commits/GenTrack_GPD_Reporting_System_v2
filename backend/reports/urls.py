@@ -7,6 +7,7 @@ from .views import (
     ESignatureViewSet, ReportSignatureViewSet, MonthlyTargetViewSet
 )
 from .views_authorization import SignatoryAuthorizationViewSet
+from .views_authorization import SignatoryViewSet
 from .views_signature import DocumentViewSet, SignatureRequestViewSet, DigitalSignatureViewSet, SigningViewSet
 from .auth_views_fixed import AuthViewSet, UserViewSet, PasswordResetRequestViewSet
 from .views_scheduled import ScheduledReportViewSet, ReportExecutionViewSet
@@ -32,6 +33,7 @@ router.register(r'e-signatures', ESignatureViewSet, basename='esignature')
 router.register(r'report-signatures', ReportSignatureViewSet, basename='reportsignature')
 router.register(r'monthly-targets', MonthlyTargetViewSet, basename='monthlytarget')
 router.register(r'signatory-authorizations', SignatoryAuthorizationViewSet, basename='signatoryauthorization')
+router.register(r'signatories', SignatoryViewSet, basename='signatory')
 
 # E-signature workflow routes
 router.register(r'documents', DocumentViewSet, basename='document')
@@ -45,7 +47,10 @@ router.register(r'password-reset-requests', PasswordResetRequestViewSet, basenam
 router.register(r'scheduled-reports', ScheduledReportViewSet, basename='scheduledreport')
 router.register(r'report-executions', ReportExecutionViewSet, basename='reportexecution')
 
+generate_setup_view = SignatoryAuthorizationViewSet.as_view({'post': 'generate_setup'})
+
 urlpatterns = [
+    path('signatory-authorizations/<str:pk>/generate-setup/', generate_setup_view, name='signatoryauthorization-generate-setup'),
     path('', include(router.urls)),
     # Health check endpoints (no authentication required)
     path('health/', health_check, name='health_check'),

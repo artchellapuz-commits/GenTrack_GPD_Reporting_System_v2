@@ -11,6 +11,8 @@ from .models import SignatoryAuthorization, SignatoryAuthorizationRequest, Audit
 from .serializers_security import SignatoryAuthorizationSerializer
 from .permissions import CanManageSignatureAuthorizations
 from .audit_utils import audit_action, audit_authorization_request, AuditLogger
+from .models import Signatory
+from .serializers import SignatorySerializer
 
 
 class SignatoryAuthorizationViewSet(viewsets.ModelViewSet):
@@ -430,6 +432,27 @@ class SignatoryAuthorizationViewSet(viewsets.ModelViewSet):
         )
         
         return Response({'message': 'Request cancelled successfully'})
+
+
+class SignatoryViewSet(viewsets.ModelViewSet):
+    """Simple CRUD for persistent Signatory entries used by the frontend."""
+    queryset = Signatory.objects.all()
+    serializer_class = SignatorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Regular users see active signatories; staff/superuser can see all
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return self.queryset.order_by('name')
+        return self.queryset.filter(is_active=True).order_by('name')
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Soft delete
+        instance.is_active = False
+        instance.save()
     
     @action(detail=True, methods=['delete'], url_path='delete-authorization')
     def delete_authorization(self, request, pk=None):
@@ -538,6 +561,52 @@ class SignatoryAuthorizationViewSet(viewsets.ModelViewSet):
                 {'error': 'An error occurred while setting up your signature. Please contact your administrator.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'], url_path='generate-setup')
+    def generate_setup(self, request, pk=None):
+        """Generate a fresh setup token for a SignatoryAuthorization and return a setup URL."""
+        try:
+            # Find the authorization - allow owner or admins
+            try:
+                authorization = SignatoryAuthorization.objects.get(id=pk)
+            except SignatoryAuthorization.DoesNotExist:
+                return Response({'error': 'Authorization not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Permission: only owner or staff can generate setup
+            if authorization.user != request.user and not request.user.is_staff and not request.user.is_superuser:
+                return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+            # Create token
+            import secrets
+            setup_token = secrets.token_urlsafe(32)
+            authorization.setup_token = setup_token
+            authorization.token_expires = timezone.now() + timezone.timedelta(hours=24)
+            authorization.save()
+
+            # Build frontend setup URL (frontend handles drawing pad and will call API to save)
+            frontend_base = getattr(settings, 'SITE_URL', None) or 'http://localhost:5173'
+            setup_url = f"{frontend_base.rstrip('/')}/signature-setup/{setup_token}"
+
+            # Also include API-level verification URL for convenience
+            base_api = (getattr(settings, 'API_URL', None) or getattr(settings, 'SITE_URL', None) or 'http://localhost:8000')
+            api_verify = f"{base_api.rstrip('/')}/api/signatory-authorizations/signature-setup/{setup_token}"
+
+            # Optionally send email to authorization.user.email (silent failure allowed)
+            try:
+                recipient = authorization.user.email
+                if recipient:
+                    subject = f'E-Signature Setup - {authorization.signatory_name}'
+                    message = f"Please set up your e-signature using this secure link: {setup_url}\nThis link is valid for 24 hours."
+                    send_mail(subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@npc-reporting.com'), [recipient], fail_silently=True)
+            except Exception:
+                pass
+
+            return Response({'setup_url': setup_url, 'api_verify_url': api_verify, 'token': setup_token})
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'], url_path='save-signature/(?P<token>[^/.]+)', permission_classes=[])
     def save_signature(self, request, token=None):

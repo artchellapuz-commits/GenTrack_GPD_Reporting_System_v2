@@ -197,7 +197,7 @@ GET /api/generation-reports/summary/
 
 #### Generate Excel Report
 ```
-POST /api/generation-reports/generate_report/
+POST /api/generation-reports/generate-report/
 ```
 
 **Request Body:**
@@ -219,7 +219,7 @@ POST /api/generation-reports/generate_report/
 
 **Example:**
 ```javascript
-axios.post('/api/generation-reports/generate_report/', data, {
+axios.post('/api/generation-reports/generate-report/', data, {
   responseType: 'blob'
 }).then(response => {
   const url = window.URL.createObjectURL(new Blob([response.data]));

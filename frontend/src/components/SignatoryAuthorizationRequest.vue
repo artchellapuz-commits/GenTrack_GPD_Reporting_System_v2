@@ -101,6 +101,9 @@
                   <button class="btn-action secondary" @click="viewAuthDetails(auth)">
                     <i class="pi pi-eye"></i>
                   </button>
+                  <button v-if="!auth.signature_created" class="btn-action primary" @click="generateSetup(auth)">
+                    <i class="pi pi-link"></i>
+                  </button>
                   <button class="btn-action danger" @click="deleteAuthorization(auth)">
                     <i class="pi pi-trash"></i>
                   </button>
@@ -145,9 +148,12 @@
                 </div>
                 
                 <div class="signatory-grid">
+                  <div class="signatory-grid-actions">
+                    <button class="btn-add" type="button" @click="showAddSignatoryModal = true">+ Add Signatory</button>
+                  </div>
                   <div 
-                    v-for="signatory in availableSignatories" 
-                    :key="signatory.name"
+                    v-for="(signatory, sIndex) in availableSignatories" 
+                    :key="signatory.name + sIndex"
                     class="signatory-card"
                     :class="{ 
                       selected: selectedSignatory === signatory.name,
@@ -157,6 +163,13 @@
                     }"
                     @click="selectSignatory(signatory.name)"
                   >
+                    <div class="card-actions">
+                      <button class="three-dot" @click.stop="toggleCardMenu(sIndex)">⋯</button>
+                      <div v-if="menuOpenFor === sIndex" class="card-menu">
+                        <button class="menu-item" @click.stop="startEditSignatory(signatory, sIndex)">Edit</button>
+                        <button class="menu-item danger" @click.stop="deleteSignatory(sIndex)">Delete</button>
+                      </div>
+                    </div>
                     <div class="signatory-avatar">
                       <i class="pi pi-user"></i>
                     </div>
@@ -177,7 +190,33 @@
                     </div>
                   </div>
                 </div>
-                
+
+                <!-- Add Signatory Modal -->
+                <div v-if="showAddSignatoryModal" class="modal-overlay" @click="closeAddSignatoryModal">
+                  <div class="modal-dialog" @click.stop>
+                    <div class="modal-header">
+                      <h3>Add Signatory</h3>
+                      <button class="modal-close" @click="closeAddSignatoryModal">
+                        <i class="pi pi-times"></i>
+                      </button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="form-field">
+                        <label class="field-label">Name</label>
+                        <input v-model="newSignatoryName" class="form-input" placeholder="Full name" />
+                      </div>
+                      <div class="form-field">
+                        <label class="field-label">Title</label>
+                        <input v-model="newSignatoryTitle" class="form-input" placeholder="Title / Position" />
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button class="btn-modal" @click="addSignatory">Add</button>
+                      <button class="btn-modal-close" @click="closeAddSignatoryModal">Close</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="step-actions">
                   <button 
                     type="button" 
@@ -251,25 +290,22 @@
                     </label>
                     <input 
                       v-model="email"
+                      name="email"
                       type="email"
                       class="form-input"
                       placeholder="Enter your email address for notifications"
                       required
                     />
+
                     <div class="field-hint">
                       <i class="pi pi-info-circle"></i>
                       <span>You'll receive email notifications when your request is reviewed and processed.</span>
                     </div>
-                  </div>
 
-                  <div class="form-field">
-                    <label class="field-label">
-                      <i class="pi pi-comment"></i>
-                      Justification Details
-                    </label>
                     <div class="textarea-container">
                       <textarea 
                         v-model="justification"
+                        name="justification"
                         class="form-textarea"
                         rows="6"
                         placeholder="Please provide a detailed explanation of why you need this authorization. Include your role, responsibilities, and how this authorization will be used."
@@ -280,6 +316,7 @@
                         {{ justification.length }}/500 characters
                       </div>
                     </div>
+
                     <div class="field-hint">
                       <i class="pi pi-info-circle"></i>
                       <span>Be specific about your role and responsibilities. This helps administrators process your request faster.</span>
@@ -627,15 +664,20 @@
             <div class="detail-grid">
               <div class="detail-item">
                 <span class="detail-label">Signatory Name:</span>
-                <span class="detail-value">{{ selectedRequestDetails.signatory_name }}</span>
+                <span v-if="!editingRequest" class="detail-value">{{ selectedRequestDetails.signatory_name }}</span>
+                <input v-else name="editSignatoryName" v-model="editForm.signatory_name" class="form-input" />
               </div>
               <div class="detail-item">
                 <span class="detail-label">Role:</span>
-                <span class="detail-value">{{ selectedRequestDetails.role }}</span>
+                <span v-if="!editingRequest" class="detail-value">{{ selectedRequestDetails.role }}</span>
+                <select v-else name="editRole" v-model="editForm.role" class="form-input">
+                  <option v-for="role in availableRoles" :key="role.value" :value="role.value">{{ role.label }}</option>
+                </select>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Email:</span>
-                <span class="detail-value">{{ selectedRequestDetails.email }}</span>
+                <span v-if="!editingRequest" class="detail-value">{{ selectedRequestDetails.email }}</span>
+                <input v-else name="editEmail" v-model="editForm.email" type="email" class="form-input" />
               </div>
               <div class="detail-item">
                 <span class="detail-label">Status:</span>
@@ -667,7 +709,8 @@
           <div class="detail-section">
             <h4>Justification</h4>
             <div class="justification-detail">
-              <p>{{ selectedRequestDetails.justification }}</p>
+              <p v-if="!editingRequest">{{ selectedRequestDetails.justification }}</p>
+              <textarea v-else v-model="editForm.justification" class="form-textarea" rows="4"></textarea>
             </div>
           </div>
 
@@ -698,13 +741,12 @@
         </div>
         <div class="modal-footer">
           <button class="btn-modal-close" @click="closeRequestDetailsModal">Close</button>
-          <button 
-            v-if="selectedRequestDetails.status === 'PENDING'" 
-            class="btn-modal-danger" 
-            @click="cancelRequest(selectedRequestDetails); closeRequestDetailsModal()"
-          >
-            Cancel Request
-          </button>
+          <template v-if="selectedRequestDetails.status === 'PENDING'">
+            <button v-if="!editingRequest" class="btn-modal" @click="startEditRequest">Edit</button>
+            <button v-else class="btn-modal" @click="saveRequestEdits">Save</button>
+            <button v-if="editingRequest" class="btn-modal" @click="cancelEditRequest">Cancel</button>
+            <button class="btn-modal-danger" @click="cancelRequest(selectedRequestDetails); closeRequestDetailsModal()">Cancel Request</button>
+          </template>
         </div>
       </div>
     </div>
@@ -780,7 +822,18 @@ export default {
       showAuthDetailsModal: false,
       selectedAuthDetails: null,
       showRequestDetailsModal: false,
-      selectedRequestDetails: null
+      selectedRequestDetails: null,
+      // Edit state for request modal
+      editingRequest: false,
+      editForm: {},
+      // Add signatory modal state
+      showAddSignatoryModal: false,
+      newSignatoryName: '',
+      newSignatoryTitle: ''
+      ,
+      // Card menu state
+      menuOpenFor: null,
+      editingSignatoryIndex: null
     };
   },
   computed: {
@@ -796,6 +849,7 @@ export default {
   mounted() {
     this.loadUserAuthorizations();
     this.loadPendingRequests();
+    this.loadSignatories();
     
     // Check for query parameters to pre-fill form with animation
     if (this.$route.query.signatory && this.$route.query.role) {
@@ -880,7 +934,7 @@ export default {
 
     async loadPendingRequests() {
       try {
-        const response = await api.getUserAuthorizationRequests();
+        const response = await api.getMyAuthorizationRequests();
         const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
         if (data.length === 0) throw new Error("empty");
         this.pendingRequests = data.filter(
@@ -1043,7 +1097,145 @@ export default {
 
     viewRequestDetails(request) {
       this.selectedRequestDetails = request;
+      // Prepare edit form
+      this.editForm = Object.assign({}, request);
+      this.editingRequest = false;
       this.showRequestDetailsModal = true;
+    },
+
+    startEditRequest() {
+      this.editingRequest = true;
+      this.editForm = Object.assign({}, this.selectedRequestDetails);
+    },
+
+    cancelEditRequest() {
+      this.editingRequest = false;
+      this.editForm = {};
+    },
+
+    async saveRequestEdits() {
+      try {
+        const payload = {
+          signatory_name: this.editForm.signatory_name,
+          role: this.editForm.role,
+          justification: this.editForm.justification,
+          email: this.editForm.email
+        };
+        await api.updateAuthorization(this.selectedRequestDetails.id, payload);
+        toast.success('Request updated successfully');
+        this.editingRequest = false;
+        await this.loadPendingRequests();
+        // Refresh selected details
+        const updated = this.pendingRequests.find(r => r.id === this.selectedRequestDetails.id) || this.editForm;
+        this.selectedRequestDetails = Object.assign({}, updated);
+      } catch (error) {
+        console.error('Error updating request:', error);
+        toast.error('Failed to update request');
+      }
+    },
+
+    async loadSignatories() {
+      try {
+        const response = await api.getSignatories();
+        const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
+        if (!data || data.length === 0) throw new Error('empty');
+        // Normalize
+        this.availableSignatories = data.map(s => ({ id: s.id, name: s.name, title: s.title || '' }));
+      } catch (error) {
+        console.warn('Using fallback static signatories');
+        // keep existing static list
+      }
+    },
+
+    // Add signatory methods
+    async addSignatory() {
+      const name = this.newSignatoryName && this.newSignatoryName.trim();
+      const title = this.newSignatoryTitle && this.newSignatoryTitle.trim();
+      if (!name) {
+        toast.error('Please provide a signatory name');
+        return;
+      }
+
+      // If editing an existing (has id), update via API
+      if (this.editingSignatoryIndex !== null && this.availableSignatories[this.editingSignatoryIndex]) {
+        const existing = this.availableSignatories[this.editingSignatoryIndex];
+            if (existing.id) {
+          try {
+            const resp = await api.updateSignatory(existing.id, { name, title });
+            const updated = resp.data;
+            this.availableSignatories.splice(this.editingSignatoryIndex, 1, { id: updated.id, name: updated.name, title: updated.title });
+            toast.success('Signatory updated');
+          } catch (error) {
+            console.error('Failed to update signatory:', error);
+            toast.error('Failed to update signatory');
+          }
+        } else {
+          // local-only item
+          this.availableSignatories.splice(this.editingSignatoryIndex, 1, { name, title: title || 'Title' });
+          toast.success('Signatory updated');
+        }
+        this.editingSignatoryIndex = null;
+      } else {
+        // Create new via API
+        try {
+          const resp = await api.createSignatory({ name, title });
+          const created = resp.data;
+          this.availableSignatories.push({ id: created.id, name: created.name, title: created.title });
+          toast.success('Signatory added');
+        } catch (error) {
+          console.warn('Failed to persist signatory, falling back to local add', error);
+          this.availableSignatories.push({ name, title: title || 'Title' });
+          toast.success('Signatory added (local)');
+        }
+      }
+
+      this.newSignatoryName = '';
+      this.newSignatoryTitle = '';
+      this.showAddSignatoryModal = false;
+    },
+
+    toggleCardMenu(index) {
+      this.menuOpenFor = this.menuOpenFor === index ? null : index;
+    },
+
+    startEditSignatory(signatory, index) {
+      this.editingSignatoryIndex = index;
+      this.newSignatoryName = signatory.name;
+      this.newSignatoryTitle = signatory.title || '';
+      this.showAddSignatoryModal = true;
+      this.menuOpenFor = null;
+    },
+
+    async deleteSignatory(index) {
+      const sign = this.availableSignatories[index];
+      if (!sign) return;
+      if (!confirm(`Delete signatory ${sign.name}? This cannot be undone.`)) return;
+
+      // If persisted on server, call API
+      if (sign.id) {
+        try {
+          await api.deleteSignatory(sign.id);
+          // Soft-delete handled server-side; remove from list
+          this.availableSignatories.splice(index, 1);
+          if (this.selectedSignatory === sign.name) this.selectedSignatory = '';
+          toast.success('Signatory deleted');
+        } catch (error) {
+          console.error('Failed to delete signatory:', error);
+          toast.error('Failed to delete signatory');
+        }
+      } else {
+        this.availableSignatories.splice(index, 1);
+        if (this.selectedSignatory === sign.name) this.selectedSignatory = '';
+        toast.success('Signatory deleted');
+      }
+
+      this.menuOpenFor = null;
+    },
+
+    closeAddSignatoryModal() {
+      this.showAddSignatoryModal = false;
+      this.newSignatoryName = '';
+      this.newSignatoryTitle = '';
     },
 
     closeAuthDetailsModal() {
@@ -1125,6 +1317,30 @@ export default {
           
           toast.error(errorMessage);
         }
+      }
+    },
+
+    async generateSetup(authorization) {
+      try {
+        const response = await api.generateSetupLink(authorization.id);
+        const data = response.data || {};
+        const setupUrl = data.setup_url || data.url;
+        if (setupUrl) {
+          window.open(setupUrl, '_blank');
+          toast.success('Opening signature setup in a new tab');
+        } else if (data.token) {
+          // Fallback: build URL from current origin
+          const fallback = `${window.location.origin}/signature-setup/${data.token}`;
+          window.open(fallback, '_blank');
+          toast.success('Opening signature setup (fallback)');
+        } else {
+          toast.error('Failed to generate setup link');
+        }
+      } catch (error) {
+        console.error('Failed to generate setup link:', error);
+        let errorMessage = 'Failed to generate setup link';
+        if (error.response?.data?.error) errorMessage = error.response.data.error;
+        toast.error(errorMessage);
       }
     },
 
@@ -1291,6 +1507,151 @@ export default {
   opacity: 1;
   transform: translateY(-2px);
 }
+
+/* Signatory add button and modal improvements */
+.signatory-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.signatory-card {
+  position: relative;
+}
+
+.signatory-grid-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.btn-add {
+  background: linear-gradient(90deg, #7c3aed, #4f46e5);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.22);
+}
+
+/* Modal overlay and dialog */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-dialog {
+  width: 520px;
+  max-width: calc(100% - 40px);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(2,6,23,0.45);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-body { padding: 18px 20px; }
+.modal-footer { padding: 12px 20px; display:flex; gap:8px; justify-content:flex-end; }
+
+.form-input, .form-textarea, select.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e6edf8;
+  background: #fbfdff;
+  outline: none;
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.form-input:focus, .form-textarea:focus, select.form-input:focus {
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.12);
+  border-color: #7c3aed;
+}
+
+.btn-modal {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-close { background: transparent; border: 1px solid #e6edf8; padding:8px 12px; border-radius:8px; cursor:pointer; }
+
+.detail-grid .form-input { max-width: 420px; }
+
+/* Card actions (three-dot menu) */
+.card-actions {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+
+.three-dot {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(0,0,0,0.06);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(2,6,23,0.06);
+}
+
+.card-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(2,6,23,0.12);
+  overflow: hidden;
+  min-width: 110px;
+}
+
+.card-menu .menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.card-menu .menu-item.danger { color: #dc2626; }
+
+
 
 /* Stats Grid */
 .stats-grid {
