@@ -131,6 +131,7 @@
                   Availability (%)
                   <i :class="['pi', getSortIcon('availability'), 'sort-icon']"></i>
                 </th>
+                <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -144,6 +145,16 @@
                 <td class="text-center">{{ report.operating_hours }}</td>
                 <td class="text-right">{{ formatNumber(report.capacity_factor) }}</td>
                 <td class="text-right">{{ formatNumber(report.availability_factor) }}</td>
+                <td class="text-center">
+                  <button 
+                    @click="openEditModal(report)" 
+                    class="btn-edit"
+                    title="Edit Report"
+                    v-if="canEdit"
+                  >
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -166,6 +177,173 @@
       <i class="pi pi-inbox"></i>
       <h3>No Reports Found</h3>
       <p>Try adjusting your filters to see generation reports</p>
+    </div>
+  </div>
+
+  <!-- Edit Report Modal -->
+  <div v-if="showEditModal" class="modal-overlay glass-overlay" @click="closeEditModal">
+    <div class="edit-modal glass-modal" @click.stop>
+      <div class="modal-header">
+        <h2>
+          <i class="pi pi-pencil"></i>
+          Edit Generation Report
+        </h2>
+        <button @click="closeEditModal" class="btn-close-modal glass-button">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-grid">
+          <!-- Report Date (Read-only) -->
+          <div class="form-group disabled-group">
+            <label><i class="pi pi-calendar"></i> Report Date <span class="required">*</span></label>
+            <div class="input-icon-wrapper">
+              <input 
+                type="date" 
+                v-model="editForm.report_date" 
+                class="form-input"
+                required
+                disabled
+              />
+              <i class="pi pi-lock lock-icon"></i>
+            </div>
+          </div>
+
+          <!-- Plant (Read-only) -->
+          <div class="form-group disabled-group">
+            <label><i class="pi pi-building"></i> Plant</label>
+            <div class="input-icon-wrapper">
+              <input 
+                type="text" 
+                :value="editForm.plant_name" 
+                class="form-input"
+                disabled
+              />
+              <i class="pi pi-lock lock-icon"></i>
+            </div>
+          </div>
+
+          <!-- Unit Number (Read-only) -->
+          <div class="form-group disabled-group">
+            <label><i class="pi pi-cog"></i> Unit Number <span class="required">*</span></label>
+            <div class="input-icon-wrapper">
+              <input 
+                type="number" 
+                v-model.number="editForm.unit_number" 
+                class="form-input"
+                min="1"
+                required
+                disabled
+              />
+              <i class="pi pi-lock lock-icon"></i>
+            </div>
+          </div>
+
+          <!-- Generation (kWh) -->
+          <div class="form-group">
+            <label><i class="pi pi-bolt"></i> Generation (kWh) <span class="required">*</span></label>
+            <input 
+              type="number" 
+              v-model.number="editForm.generation_kwh" 
+              class="form-input active-input"
+              min="0"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <!-- Operating Hours -->
+          <div class="form-group">
+            <label><i class="pi pi-clock"></i> Operating Hours <span class="required">*</span></label>
+            <input 
+              type="number" 
+              v-model.number="editForm.operating_hours" 
+              class="form-input active-input"
+              min="0"
+              max="24"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <!-- Capacity Factor -->
+          <div class="form-group">
+            <label><i class="pi pi-chart-pie"></i> Capacity Factor (%) <span class="required">*</span></label>
+            <input 
+              type="number" 
+              v-model.number="editForm.capacity_factor" 
+              class="form-input active-input"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <!-- Availability Factor -->
+          <div class="form-group">
+            <label><i class="pi pi-check-circle"></i> Availability Factor (%) <span class="required">*</span></label>
+            <input 
+              type="number" 
+              v-model.number="editForm.availability_factor" 
+              class="form-input active-input"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <!-- Forced Outage Hours -->
+          <div class="form-group">
+            <label><i class="pi pi-exclamation-triangle"></i> Forced Outage Hours</label>
+            <input 
+              type="number" 
+              v-model.number="editForm.forced_outage_hours" 
+              class="form-input active-input"
+              min="0"
+              max="24"
+              step="0.01"
+            />
+          </div>
+
+          <!-- Scheduled Outage Hours -->
+          <div class="form-group">
+            <label><i class="pi pi-calendar-times"></i> Scheduled Outage Hours</label>
+            <input 
+              type="number" 
+              v-model.number="editForm.scheduled_outage_hours" 
+              class="form-input active-input"
+              min="0"
+              max="24"
+              step="0.01"
+            />
+          </div>
+
+          <!-- Remarks -->
+          <div class="form-group full-width">
+            <label><i class="pi pi-comment"></i> Remarks</label>
+            <textarea 
+              v-model="editForm.remarks" 
+              class="form-textarea active-input"
+              rows="3"
+              placeholder="Add any notes or comments..."
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button @click="closeEditModal" class="btn-cancel">
+          <i class="pi pi-times"></i>
+          Cancel
+        </button>
+        <button @click="saveEdit" class="btn-save" :disabled="saving">
+          <i class="pi" :class="saving ? 'pi-spin pi-spinner' : 'pi-check'"></i>
+          {{ saving ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
     </div>
   </div>
   </AppLayout>
@@ -203,6 +381,23 @@ export default {
       // Sorting
       sortField: 'report_date',
       sortOrder: -1, // -1 for descending, 1 for ascending
+      // Edit functionality
+      showEditModal: false,
+      editForm: {
+        id: null,
+        report_date: '',
+        plant_name: '',
+        unit_number: null,
+        generation_kwh: 0,
+        operating_hours: 0,
+        capacity_factor: 0,
+        availability_factor: 0,
+        forced_outage_hours: 0,
+        scheduled_outage_hours: 0,
+        remarks: ''
+      },
+      saving: false,
+      canEdit: false,
     };
   },
   computed: {
@@ -257,6 +452,8 @@ export default {
     }
   },
   mounted() {
+    // Check if user can edit (managers and above)
+    this.canEdit = this.isManagerOrAbove();
     this.loadPlants();
     this.loadReports();
   },
@@ -406,6 +603,85 @@ export default {
     },
     formatNumber(value) {
       return value ? parseFloat(value).toFixed(2) : '0.00';
+    },
+    
+    // Permission check
+    isManagerOrAbove() {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const role = user.role || '';
+      return ['MANAGER', 'ADMIN', 'SUPERADMIN'].includes(role);
+    },
+    
+    // Edit functionality
+    openEditModal(report) {
+      this.editForm = {
+        id: report.id,
+        report_date: report.report_date,
+        plant_name: report.plant_name,
+        plant_code: report.plant_code,
+        unit_number: report.unit_number,
+        generation_kwh: report.generation_kwh,
+        operating_hours: report.operating_hours,
+        capacity_factor: report.capacity_factor,
+        availability_factor: report.availability_factor,
+        forced_outage_hours: report.forced_outage_hours || 0,
+        scheduled_outage_hours: report.scheduled_outage_hours || 0,
+        remarks: report.remarks || ''
+      };
+      this.showEditModal = true;
+    },
+    
+    closeEditModal() {
+      this.showEditModal = false;
+      this.editForm = {
+        id: null,
+        report_date: '',
+        plant_name: '',
+        unit_number: null,
+        generation_kwh: 0,
+        operating_hours: 0,
+        capacity_factor: 0,
+        availability_factor: 0,
+        forced_outage_hours: 0,
+        scheduled_outage_hours: 0,
+        remarks: ''
+      };
+    },
+    
+    async saveEdit() {
+      if (!this.editForm.id) return;
+      
+      this.saving = true;
+      
+      try {
+        // Prepare data for API
+        const updateData = {
+          report_date: this.editForm.report_date,
+          unit_number: this.editForm.unit_number,
+          generation_kwh: this.editForm.generation_kwh,
+          operating_hours: this.editForm.operating_hours,
+          capacity_factor: this.editForm.capacity_factor,
+          availability_factor: this.editForm.availability_factor,
+          forced_outage_hours: this.editForm.forced_outage_hours,
+          scheduled_outage_hours: this.editForm.scheduled_outage_hours,
+          remarks: this.editForm.remarks
+        };
+        
+        await api.updateGenerationReport(this.editForm.id, updateData);
+        
+        this.$toast.success('Report updated successfully!');
+        this.closeEditModal();
+        
+        // Reload reports to show updated data
+        await this.loadReports();
+        
+      } catch (error) {
+        console.error('Error updating report:', error);
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to update report';
+        this.$toast.error(errorMsg);
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
@@ -861,5 +1137,263 @@ th .pi-sort-amount-down {
   .summary-grid {
     grid-template-columns: 1fr;
   }
+}
+/* Edit Button */
+.btn-edit {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.btn-edit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-edit:active {
+  transform: translateY(0);
+}
+
+/* Edit Modal */
+@keyframes overlayFadeIn {
+  from { background: rgba(0, 0, 0, 0); }
+  to { background: rgba(0, 0, 0, 0.5); }
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+  animation: overlayFadeIn 0.2s ease;
+}
+
+.edit-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.edit-modal .modal-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.edit-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-close-modal {
+  background: transparent;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close-modal:hover {
+  opacity: 1;
+}
+
+.edit-modal .modal-body {
+  padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-group label i {
+  color: #3b82f6;
+  font-size: 1rem;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-wrapper .form-input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.lock-icon {
+  position: absolute;
+  right: 1rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.active-input:hover {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.active-input:focus,
+.form-textarea.active-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.form-input:disabled {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+}
+
+.disabled-group label i {
+  color: #94a3b8;
+}
+
+.disabled-group label {
+  color: #64748b;
+}
+
+.form-textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.edit-modal .modal-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #f8fafc;
+}
+
+.btn-cancel {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-cancel:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.btn-save:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

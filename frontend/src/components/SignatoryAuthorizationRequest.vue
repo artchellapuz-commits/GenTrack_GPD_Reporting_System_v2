@@ -81,8 +81,8 @@
                 </div>
               </div>
               
-              <div class="auth-card-body">
-                <div class="auth-details">
+              <div class="auth-card-body" style="position: relative;">
+                <div class="auth-details" style="width: 100%;">
                   <div class="detail-item ">
                     <i class="pi pi-calendar"></i>
                     <span>Authorized: {{ formatDate(auth.authorization_date) }}</span>
@@ -97,16 +97,19 @@
                   </div>
                 </div>
                 
-                <div class="auth-actions">
-                  <button class="btn-action secondary" @click="viewAuthDetails(auth)">
-                    <i class="pi pi-eye"></i>
-                  </button>
-                  <button v-if="!auth.signature_created" class="btn-action primary" @click="generateSetup(auth)">
-                    <i class="pi pi-link"></i>
-                  </button>
-                  <button class="btn-action danger" @click="deleteAuthorization(auth)">
-                    <i class="pi pi-trash"></i>
-                  </button>
+                <div class="card-actions" style="position: absolute; top: -3rem; right: 0;">
+                  <button class="three-dot" @click.stop="toggleAuthMenu(index)">⋯</button>
+                  <div v-if="authMenuOpenFor === index" class="card-menu">
+                    <button class="menu-item" @click.stop="viewAuthDetails(auth); closeAuthMenu()">
+                      <i class="pi pi-eye"></i> View
+                    </button>
+                    <button v-if="!auth.signature_created" class="menu-item" @click.stop="generateSetup(auth); closeAuthMenu()">
+                      <i class="pi pi-link"></i> Link
+                    </button>
+                    <button class="menu-item danger" @click.stop="deleteAuthorization(auth); closeAuthMenu()">
+                      <i class="pi pi-trash"></i> Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -833,6 +836,7 @@ export default {
       ,
       // Card menu state
       menuOpenFor: null,
+      authMenuOpenFor: null,
       editingSignatoryIndex: null
     };
   },
@@ -851,7 +855,8 @@ export default {
     this.loadPendingRequests();
     this.loadSignatories();
     
-    // Check for query parameters to pre-fill form with animation
+    // Close dropdowns on outside click
+    document.addEventListener('click', this.closeAllMenus);
     if (this.$route.query.signatory && this.$route.query.role) {
       // Animate through the steps automatically
       this.$nextTick(() => {
@@ -895,6 +900,9 @@ export default {
       // Only role provided
       this.selectedRole = this.$route.query.role;
     }
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeAllMenus);
   },
   methods: {
     // Data loading methods
@@ -966,6 +974,24 @@ export default {
       if (this.currentStep > 1) {
         this.currentStep--;
       }
+    },
+
+    // Menu toggle methods
+    toggleAuthMenu(index) {
+      if (this.authMenuOpenFor === index) {
+        this.authMenuOpenFor = null;
+      } else {
+        this.authMenuOpenFor = index;
+      }
+    },
+    
+    closeAuthMenu() {
+      this.authMenuOpenFor = null;
+    },
+    
+    closeAllMenus() {
+      this.menuOpenFor = null;
+      this.authMenuOpenFor = null;
     },
 
     // Selection methods
@@ -2171,9 +2197,14 @@ export default {
 
 .detail-item {
   display: flex;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #4f46e5;
   font-size: 0.9rem;
   color: #64748b;
   line-height: 1.2;
@@ -2256,13 +2287,7 @@ export default {
   box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
 }
 
-.auth-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-self: flex-start;
-  margin-top: 0.25rem;
-}
+
 
 /* Progress Indicator */
 .progress-indicator {
@@ -2354,6 +2379,75 @@ export default {
 .step-header p {
   color: #64748b;
   font-size: 1rem;
+}
+
+/* Card Menu (Three dots) */
+.card-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+}
+
+.three-dot {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.three-dot:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.card-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 10;
+  border: 1px solid #e2e8f0;
+}
+
+.menu-item {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  color: #475569;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.menu-item:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.menu-item.danger {
+  color: #ef4444;
+}
+
+.menu-item.danger:hover {
+  background: #fee2e2;
 }
 
 /* Interactive Grids */
@@ -2782,7 +2876,9 @@ export default {
 
 .request-actions {
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-self: flex-start;
 }
 
 /* Help Section */
@@ -3205,7 +3301,7 @@ export default {
   gap: 1rem;
 }
 
-.detail-item {
+.detail-grid .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;

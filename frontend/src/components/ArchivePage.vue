@@ -280,26 +280,6 @@ export default {
       if (index > -1) toasts.value.splice(index, 1);
     };
 
-    // MOCK DATA FALLBACK
-    const generateMockData = () => {
-      const plants = ['Agus 1', 'Agus 2', 'Agus 4', 'Agus 5', 'Agus 6', 'Agus 7'];
-      const statuses = ['COMPLETED', 'COMPLETED', 'COMPLETED', 'FAILED'];
-      return Array.from({ length: 45 }).map((_, i) => {
-        const plant = plants[Math.floor(Math.random() * plants.length)];
-        const uploadedDate = new Date(Date.now() - Math.random() * 10000000000);
-        const archivedDate = new Date(uploadedDate.getTime() + Math.random() * 5000000000);
-        return {
-          id: 1000 + i,
-          original_filename: `${plant.replace(' ', '_')}_Generation_Report_Q${Math.floor(Math.random()*4)+1}.xlsx`,
-          plant_name: `${plant} Hydroelectric Plant`,
-          uploaded_at: uploadedDate.toISOString(),
-          archived_at: archivedDate.toISOString(),
-          status: statuses[Math.floor(Math.random() * statuses.length)],
-          records_imported: Math.floor(Math.random() * 800) + 100
-        };
-      }).sort((a, b) => new Date(b.archived_at) - new Date(a.archived_at));
-    };
-
     // Load Data
     const loadArchivedFiles = async () => {
       loading.value = true;
@@ -308,15 +288,14 @@ export default {
         const data = response.data?.results || response.data || [];
         archivedFiles.value = data;
         
-        // If no real data, fall back to mock data for demo purposes
+        // Don't use mock data - show real empty state
         if (data.length === 0) {
-          console.warn('No archived files found, using mock data for demo');
-          archivedFiles.value = generateMockData();
+          console.log('No archived files found');
         }
       } catch (error) {
         console.error('Failed to load archived files:', error);
-        console.warn('Using mock archived data due to API error');
-        archivedFiles.value = generateMockData();
+        showToast('error', 'Error', 'Failed to load archived files. Please try again.');
+        archivedFiles.value = [];
       } finally {
         selectedFiles.value = [];
         setTimeout(() => loading.value = false, 600); // UI feel
@@ -418,10 +397,12 @@ export default {
       try {
         let count = 0;
         let errors = [];
+        const restoredIds = [];
         
         for (const id of selectedFiles.value) {
           try {
             await api.restoreArchivedFile(id);
+            restoredIds.push(id);
             count++;
           } catch (error) {
             console.error(`Failed to restore file ${id}:`, error);
@@ -430,7 +411,6 @@ export default {
         }
         
         // Remove successfully restored files from the list
-        const restoredIds = selectedFiles.value.slice(0, count);
         archivedFiles.value = archivedFiles.value.filter(f => !restoredIds.includes(f.id));
         
         if (count > 0) {
@@ -482,10 +462,12 @@ export default {
       try {
         let count = 0;
         let errors = [];
+        const deletedIds = [];
         
         for (const id of selectedFiles.value) {
           try {
             await api.deleteUploadedFile(id);
+            deletedIds.push(id);
             count++;
           } catch (error) {
             console.error(`Failed to delete file ${id}:`, error);
@@ -494,7 +476,6 @@ export default {
         }
         
         // Remove successfully deleted files from the list
-        const deletedIds = selectedFiles.value.slice(0, count);
         archivedFiles.value = archivedFiles.value.filter(f => !deletedIds.includes(f.id));
         
         if (count > 0) {
@@ -689,6 +670,80 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-cancel:hover { background: #e2e8f0; }
 .btn-danger { flex: 1; background: #ef4444; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.3); transition: all 0.2s; }
 .btn-danger:hover:not(:disabled) { background: #dc2626; transform: translateY(-2px); }
+
+/* Toast Styles */
+.toast-wrapper {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.modern-toast {
+  pointer-events: auto;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #3b82f6;
+  position: relative;
+}
+
+.modern-toast.success { border-left-color: #10b981; }
+.modern-toast.error { border-left-color: #ef4444; }
+.modern-toast.info { border-left-color: #3b82f6; }
+
+.t-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.success .t-icon { color: #10b981; }
+.error .t-icon { color: #ef4444; }
+.info .t-icon { color: #3b82f6; }
+
+.t-content { flex: 1; }
+.t-content h4 { margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a; }
+.t-content p { margin: 0; font-size: 0.875rem; color: #64748b; line-height: 1.4; }
+
+.t-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.t-close:hover { background: #f1f5f9; color: #475569; }
+
+/* Toast Animations */
+.toast-anim-enter-active, .toast-anim-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-anim-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.toast-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
 
 /* Transitions */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s, transform 0.3s; }

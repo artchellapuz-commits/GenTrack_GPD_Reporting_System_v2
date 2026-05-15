@@ -133,6 +133,11 @@ export const api = {
     return response; // Return full response object
   },
 
+  async updateGenerationReport(id, data) {
+    const response = await apiClient.patch(`/generation-reports/${id}/`, data);
+    return response; // Return full response object
+  },
+
   async getReportSummary(params = {}) {
     const response = await apiClient.get('/generation-reports/summary/', { params });
     return response; // Return full response object
@@ -200,6 +205,36 @@ export const api = {
     console.log('📡 Loading upload history from API...');
     const response = await apiClient.get('/uploaded-files/');
     console.log('✅ Upload history loaded:', response.data);
+    return response; // Return full response object
+  },
+
+  async getArchivedFiles() {
+    console.log('📡 Loading archived files from API...');
+    const response = await apiClient.get('/uploaded-files/', {
+      params: { is_archived: true }
+    });
+    console.log('✅ Archived files loaded:', response.data);
+    return response; // Return full response object
+  },
+
+  async restoreArchivedFile(fileId) {
+    console.log(`📡 Restoring archived file ${fileId}...`);
+    const response = await apiClient.post(`/uploaded-files/${fileId}/restore/`);
+    console.log('✅ File restored:', response.data);
+    return response; // Return full response object
+  },
+
+  async archiveUploadedFile(fileId) {
+    console.log(`📡 Archiving file ${fileId}...`);
+    const response = await apiClient.post(`/uploaded-files/${fileId}/archive/`);
+    console.log('✅ File archived:', response.data);
+    return response; // Return full response object
+  },
+
+  async deleteUploadedFile(fileId) {
+    console.log(`📡 Deleting uploaded file ${fileId}...`);
+    const response = await apiClient.delete(`/uploaded-files/${fileId}/delete_upload/`);
+    console.log('✅ File deleted:', response.data);
     return response; // Return full response object
   },
 

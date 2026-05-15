@@ -13,6 +13,7 @@ def trigger_email_workflow(auth_request):
         from django.core.mail import send_mail
         from django.conf import settings
         from django.utils import timezone
+        import datetime
         import secrets
         
         print(f"🔥 STANDALONE EMAIL WORKFLOW TRIGGERED for {auth_request.signatory_name}")
@@ -48,7 +49,7 @@ def trigger_email_workflow(auth_request):
             requires_2fa=True,
             notes='Auto-approved via email link',
             setup_token=setup_token,
-            token_expires=timezone.now() + timezone.timedelta(hours=24),
+            token_expires=timezone.now() + datetime.timedelta(hours=24),
             signature_created=False
         )
         print(f"🔥 Authorization created: ID={authorization.id}")

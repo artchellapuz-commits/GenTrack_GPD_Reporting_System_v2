@@ -54,10 +54,41 @@ class UnitViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class UploadedFileViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = UploadedFile.objects.filter(is_archived=False).select_related('plant', 'uploaded_by')
+    queryset = UploadedFile.objects.all().select_related('plant', 'uploaded_by')
     serializer_class = UploadedFileSerializer
     permission_classes = [AllowAny]  # Allow unauthenticated access for internal system
     authentication_classes = []  # Disable authentication to avoid CSRF issues
+    
+    def get_queryset(self):
+        """Filter by is_archived parameter"""
+        queryset = UploadedFile.objects.all().select_related('plant', 'uploaded_by')
+        
+        # Check if is_archived parameter is provided
+        is_archived = self.request.query_params.get('is_archived')
+        
+        if is_archived is not None:
+            # Convert string to boolean
+            is_archived_bool = is_archived.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(is_archived=is_archived_bool)
+        else:
+            # Default: only show non-archived files
+            queryset = queryset.filter(is_archived=False)
+        
+        return queryset.order_by('-uploaded_at')
+    
+    def get_object(self):
+        """Override to bypass queryset filters for detail actions"""
+        # For archive and restore actions, get the object directly
+        if self.action in ['archive', 'restore', 'delete_upload']:
+            pk = self.kwargs.get('pk')
+            try:
+                return UploadedFile.objects.get(pk=pk)
+            except UploadedFile.DoesNotExist:
+                from rest_framework.exceptions import NotFound
+                raise NotFound('File not found')
+        
+        # For other actions, use the default behavior
+        return super().get_object()
     
     @action(detail=False, methods=['get'], url_path='download-template/daily-generation')
     def download_daily_generation_template(self, request):
@@ -160,12 +191,12 @@ class UploadedFileViewSet(viewsets.ReadOnlyModelViewSet):
                 request=request
             )
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], url_path='archive')
     def archive(self, request, pk=None):
         """Archive an uploaded file"""
         try:
             from django.utils import timezone
-            # Get the file without the is_archived filter
+            # Get the file directly, bypassing queryset filters
             uploaded_file = UploadedFile.objects.get(pk=pk)
             
             if uploaded_file.is_archived:
@@ -199,11 +230,11 @@ class UploadedFileViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """Restore an archived file"""
         try:
-            # Get the file without the is_archived filter
+            # Get the file directly, bypassing queryset filters
             uploaded_file = UploadedFile.objects.get(pk=pk)
             
             if not uploaded_file.is_archived:
@@ -371,6 +402,7 @@ class UploadedFileViewSet(viewsets.ReadOnlyModelViewSet):
 
 class GenerationReportViewSet(mixins.ListModelMixin,
                               mixins.RetrieveModelMixin,
+                              mixins.UpdateModelMixin,
                               viewsets.GenericViewSet):
     queryset = GenerationReport.objects.all().select_related('plant', 'unit', 'uploaded_file')
     permission_classes = [AllowAny]  # Allow unauthenticated access for internal system
@@ -380,6 +412,21 @@ class GenerationReportViewSet(mixins.ListModelMixin,
         if self.action == 'list':
             return GenerationReportListSerializer
         return GenerationReportSerializer
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        
+        # Log data update
+        AuditLogger.log_user_action(
+            user=self.request.user if self.request.user.is_authenticated else None,
+            action='DATA_UPDATE',
+            description=f'Updated generation report data for {instance.plant.name} Unit {instance.unit.unit_number} on {instance.report_date}',
+            model_name='GenerationReport',
+            object_id=instance.id,
+            category='data_management',
+            severity='MEDIUM',
+            request=self.request
+        )
     
     def get_queryset(self):
         queryset = super().get_queryset()
