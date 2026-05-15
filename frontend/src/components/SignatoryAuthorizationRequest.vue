@@ -72,32 +72,17 @@
                   </div>
                 </div>
                 <div class="auth-info">
-                  <h3 class="auth-name">{{ auth.signatory_name }}</h3>
+                  <div class="auth-name-row">
+                    <h3 class="auth-name">{{ auth.signatory_name }}</h3>
+                    <div class="auth-status-badge" :class="getSignatureStatusClass(auth)">
+                      <i :class="getSignatureStatusIcon(auth)"></i>
+                      {{ getSignatureStatusText(auth) }}
+                    </div>
+                  </div>
                   <p class="auth-role">{{ getSignatoryTitle(auth.signatory_name) }}</p>
                 </div>
-                <div class="auth-status-badge" :class="getSignatureStatusClass(auth)">
-                  <i :class="getSignatureStatusIcon(auth)"></i>
-                  {{ getSignatureStatusText(auth) }}
-                </div>
-              </div>
-              
-              <div class="auth-card-body" style="position: relative;">
-                <div class="auth-details" style="width: 100%;">
-                  <div class="detail-item ">
-                    <i class="pi pi-calendar"></i>
-                    <span>Authorized: {{ formatDate(auth.authorization_date) }}</span>
-                  </div>
-                  <div v-if="auth.expiry_date" class="detail-item">
-                    <i class="pi pi-clock"></i>
-                    <span>Expires: {{ formatDate(auth.expiry_date) }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <i class="pi pi-shield"></i>
-                    <span>2FA: {{ auth.requires_2fa ? 'Required' : 'Not Required' }}</span>
-                  </div>
-                </div>
                 
-                <div class="card-actions" style="position: absolute; top: -3rem; right: 0;">
+                <div class="auth-card-actions">
                   <button class="three-dot" @click.stop="toggleAuthMenu(index)">⋯</button>
                   <div v-if="authMenuOpenFor === index" class="card-menu">
                     <button class="menu-item" @click.stop="viewAuthDetails(auth); closeAuthMenu()">
@@ -109,6 +94,23 @@
                     <button class="menu-item danger" @click.stop="deleteAuthorization(auth); closeAuthMenu()">
                       <i class="pi pi-trash"></i> Delete
                     </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="auth-card-body">
+                <div class="auth-details">
+                  <div class="detail-item ">
+                    <i class="pi pi-calendar"></i>
+                    <span>Authorized: {{ formatDate(auth.authorization_date) }}</span>
+                  </div>
+                  <div v-if="auth.expiry_date" class="detail-item">
+                    <i class="pi pi-clock"></i>
+                    <span>Expires: {{ formatDate(auth.expiry_date) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <i class="pi pi-shield"></i>
+                    <span>2FA: {{ auth.requires_2fa ? 'Required' : 'Not Required' }}</span>
                   </div>
                 </div>
               </div>
@@ -1982,8 +1984,23 @@ export default {
 .auth-card-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+  width: 100%;
+}
+
+.auth-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.auth-card-actions {
+  margin-left: auto;
+  position: relative;
+  z-index: 5;
 }
 
 .auth-avatar {
@@ -2130,13 +2147,15 @@ export default {
 }
 
 .auth-status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.6rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .auth-status-badge {
@@ -2164,19 +2183,23 @@ export default {
 .auth-status-badge.signature-verified {
   background: #dcfce7;
   color: #166534;
-  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
+  border: 1px solid #bbf7d0;
 }
 
 .auth-status-badge.signature-missing {
   background: #fef3c7;
   color: #92400e;
-  box-shadow: 0 4px 12px rgba(146, 64, 14, 0.2);
+  border: 1px solid #fde68a;
 }
 
 .auth-status-badge.signature-none {
   background: #fee2e2;
   color: #dc2626;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+  border: 1px solid #fecaca;
+}
+
+.auth-status-badge i {
+  font-size: 0.7rem;
 }
 
 .authorization-card:hover .auth-status-badge {
