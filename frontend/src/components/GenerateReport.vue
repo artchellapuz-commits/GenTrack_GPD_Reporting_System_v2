@@ -1800,7 +1800,7 @@ export default {
           start_date: historyItem.reportDate,
           end_date: historyItem.reportDate,
           report_type: historyItem.reportType,
-        });
+        }, { responseType: 'blob' });
 
         // Create download link
         const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -2029,7 +2029,7 @@ export default {
           start_date: this.reportDate,
           end_date: this.reportDate,
           report_type: this.reportType,
-        });
+        }, { responseType: 'blob' });
 
         // Create download link from blob
         const blob = new Blob([response.data], {

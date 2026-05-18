@@ -1,32 +1,39 @@
 @echo off
+cd /d "%~dp0"
+title NPC Reporting System Runner
+color 0B
+
 echo ========================================
 echo NPC Reporting System - Startup Script
 echo ========================================
 echo.
 
-echo Starting Backend Server (Django)...
-start "NPC Backend" cmd /k "cd backend && .\venv\Scripts\activate && python manage.py runserver"
-timeout /t 3 /nobreak >nul
+echo [1/3] Starting Backend Server (Django)...
+start "NPC Backend" cmd /k "START_BACKEND.bat"
+timeout /t 5 /nobreak >nul
 
-echo Starting Frontend Server (Vue.js)...
-start "NPC Frontend" cmd /k "cd frontend && npm run serve"
+echo [2/3] Starting Frontend Server (Vue.js)...
+start "NPC Frontend" cmd /k "START_FRONTEND.bat"
 
 echo.
 echo ========================================
 echo System Starting...
 echo ========================================
 echo.
-echo Backend will be available at: http://localhost:8000
-echo Frontend will be available at: http://localhost:8081
+echo Backend running on:  http://localhost:8000
+echo Frontend running on: http://localhost:3000
 echo.
-echo Please wait 10-15 seconds for both servers to start.
-echo.
-echo Press any key to open the application in your browser...
-pause >nul
+echo [3/3] Please wait 10 seconds for both servers to fully initialize...
+timeout /t 10 /nobreak >nul
 
-start http://localhost:8081
+echo Opening the application in your default web browser...
+start http://localhost:3000
 
 echo.
-echo System is running!
-echo Close the terminal windows to stop the servers.
+echo ========================================
+echo System is now running!
+echo Do not close the two command prompt windows that opened.
+echo Close them only when you want to stop the system.
+echo ========================================
 echo.
+pause

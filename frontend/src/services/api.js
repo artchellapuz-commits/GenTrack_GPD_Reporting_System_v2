@@ -153,8 +153,8 @@ export const api = {
     return response; // Return full response object
   },
 
-  async generateReport(reportData) {
-    const response = await apiClient.post('/generation-reports/generate-report/', reportData);
+  async generateReport(reportData, config = {}) {
+    const response = await apiClient.post('/generation-reports/generate-report/', reportData, config);
     return response; // Return full response object
   },
 

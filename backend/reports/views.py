@@ -2,11 +2,12 @@ from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.db.models import Sum, Avg, Q
 from datetime import datetime
 import hashlib
 import os
+import io
 import tempfile
 import json
 
@@ -523,7 +524,7 @@ class GenerationReportViewSet(mixins.ListModelMixin,
                 # Both daily_status and PSR now use the same PSR template
                 # Pass report_type to customize header styling
                 exporter = PSRExporter(reports, report_date, report_type=report_type)
-                file_path = exporter.generate()
+                workbook = exporter.generate()
                 
                 if report_type == 'daily_status':
                     filename = f"DAILY_PLANT_STATUS_{report_date.strftime('%Y%m%d')}.xlsx"
@@ -532,7 +533,7 @@ class GenerationReportViewSet(mixins.ListModelMixin,
                     filename = f"PSR_REPORT_{report_date.strftime('%Y%m%d')}.xlsx"
                     report_name = "PSR Report"
                 
-                # Comprehensive audit logging for report generation
+                # ... audit logging ...
                 audit_report_generation(
                     user=request.user,
                     report_date=report_date.strftime('%Y-%m-%d'),
@@ -540,7 +541,7 @@ class GenerationReportViewSet(mixins.ListModelMixin,
                     request=request
                 )
                 
-                # Additional detailed logging
+                # ... additional detailed logging ...
                 AuditLogger.log_user_action(
                     user=request.user,
                     action='REPORT_GENERATE',
@@ -558,9 +559,13 @@ class GenerationReportViewSet(mixins.ListModelMixin,
                     record_count=reports.count(),
                     request=request
                 )
+
+            # Create in-memory buffer for the Excel file
+            output = io.BytesIO()
+            workbook.save(output)
             
-            response = FileResponse(
-                open(file_path, 'rb'),
+            response = HttpResponse(
+                output.getvalue(),
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
